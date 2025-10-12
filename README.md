@@ -1,3 +1,4 @@
+<img src="https://img.hostimg.pw/1760272196-4179552.png" with="50%"/>
 <h1>CMS Wiki</h1>
 <p>CMS Wiki - это беспланый движок для вики сайта, созданный на базе Laravel и базы данных MySQL.</p>
 <h2 class="mt-4">Особенности установки:</h2> 
