@@ -7,7 +7,7 @@
         </x-slot>
 
         <div class="mb-4 text-sm text-gray-600">
-            {{ __('Получить новый пароль? Нет ничего проще, укажите Email, мы удалим его и после этого вам надо будет заново зарегистрироваться.') }}
+            {{ __('ui.forgot_password_text') }}
         </div>
 
         <!-- Session Status -->
@@ -21,14 +21,14 @@
 
             <!-- Email Address -->
             <div>
-                <x-label for="email" :value="__('Введите текущий Email')" />
+                <x-label for="email" :value="__('ui.current_email')" />
 
                 <x-input id="email" class="block mt-1 w-full" type="email" name="email" :value="old('email')" required autofocus />
             </div>
 
             <div class="flex items-center justify-end mt-4">
                 <x-button>
-                    {{ __('Сбросить Email') }}
+                    {{ __('ui.reset_email') }}
                 </x-button>
             </div>
         </form>

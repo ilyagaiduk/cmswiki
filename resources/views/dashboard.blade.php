@@ -1,12 +1,12 @@
 <!doctype html>
-<html lang="ru">
+<html lang="{{ app()->getLocale() }}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{$indexText->h1}} — {{$settings->title}}</title>
     <meta property="og:title" content="{{$indexText->h1}}"/>
-    <meta property="og:description" content="Самая занимательная вики энциклопедия — {{$settings->title}}"/>
+    <meta property="og:description" content="{{ __('ui.page_description', ['title' => $settings->title]) }}"/>
     <meta property="og:image" content="<?php echo url(''); ?>{{$indexText->img}}"/>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"
           integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous">
@@ -62,7 +62,7 @@
             <a href="/index"><img src="/img/logo-not-fon.png" width="65px"/></a> <span class="fs-2">{{$settings->title}}</span>
         </div>
         <div class="col-md-8">
-            <div class="fs-5 text-end">@if(Auth::check())<a id="user" class="link-dark" href="#">@if($currName == 0) {{ Auth::user()->name }} @elseif($currName == 1) {{ Auth::user()->fullname }}@endif</a><br><div id="menu" style="display:none; background: #f7fafc; width: 150px; height: 200px" class="col float-end"><a class="link-dark p-3" href="/index">Главная</a><br><br><a class="link-dark p-3" href="{{ route('settings') }}">Настройки</a><br><br><a class="link-dark p-3" href="/logout">Выйти</a></div></div> @else <a class="pe-3 link-dark" href="/login">Войти</a>   <a class="link-dark" href="/register">Регистрация</a>@endif</div>
+            <div class="fs-5 text-end">@if(Auth::check())<a id="user" class="link-dark" href="#">@if($currName == 0) {{ Auth::user()->name }} @elseif($currName == 1) {{ Auth::user()->fullname }}@endif</a><br><div id="menu" style="display:none; background: #f7fafc; width: 150px; height: 200px" class="col float-end"><a class="link-dark p-3" href="/index">{{ __('ui.home') }}</a><br><br><a class="link-dark p-3" href="{{ route('settings') }}">{{ __('ui.settings') }}</a><br><br><a class="link-dark p-3" href="/logout">{{ __('ui.logout') }}</a></div></div> @else <a class="pe-3 link-dark" href="/login">{{ __('ui.login') }}</a>   <a class="link-dark" href="/register">{{ __('ui.register') }}</a>@endif</div>
         </div>
     </div>
 </div>
@@ -101,7 +101,7 @@
                     <input name="image" id="image" type="file" />
                 </div>
                     <input type='hidden' name='url2' value='<?php echo $_SERVER['REQUEST_URI']; ?>'>
-                    <div class="text-center"><button class="btn btn-secondary " type="submit">Загрузить</button></div>
+                    <div class="text-center"><button class="btn btn-secondary " type="submit">{{ __('ui.upload') }}</button></div>
                     @csrf
                                     </form>
                            @endif
@@ -109,13 +109,13 @@
             <div class="text-center mt-5">
                 <form action="{{route('random')}}" method="post">
                     @csrf
-                    <button type="submit" class="btn btn-secondary">Рандомная статья</button>
+                    <button type="submit" class="btn btn-secondary">{{ __('ui.random_article') }}</button>
                 </form>
             </div>
             <div class="text-center mt-3">
                 <form action="{{route('new')}}" method="post">
                     @csrf
-                    <button type="submit" class="btn btn-secondary">Новое</button>
+                    <button type="submit" class="btn btn-secondary">{{ __('ui.new') }}</button>
                 </form>
             </div>
             <div class="text-center mt-3">
@@ -123,7 +123,7 @@
             </div>
             @if(Auth::check())
             @if(Auth::user()->name == 'admin')
-                <div class="text-center"><a href="{{route('moderate')}}">Правки({{$countModerate}})</a></div>
+                <div class="text-center"><a href="{{route('moderate')}}">{{ __('ui.edits') }}({{$countModerate}})</a></div>
 
                 @endif
             @endif
@@ -144,23 +144,23 @@
                     <form id="formText" method="post" action="/savemain">
                         @csrf
                         <div class="mb-3">
-                            <label for="newh1" class="form-label">Заголовок</label>
+                            <label for="newh1" class="form-label">{{ __('ui.title') }}</label>
                             <input name="newh1" id="newh1" class="form-control" type="text" value="{{ $indexText->h1 }}">
                         </div>
                         <div class="mb-3">
                             <div class="d-flex justify-content-between align-items-center mb-2">
-                                <label for="editor" class="form-label mb-0">Текст статьи</label>
+                                <label for="editor" class="form-label mb-0">{{ __('ui.article_text') }}</label>
                                 <div class="d-flex gap-2">
-                                    <button class="btn btn-outline-danger btn-sm" id="clearEditorLinks" type="button">Убрать ссылки</button>
-                                    <button class="btn btn-outline-secondary btn-sm" id="toggleHtmlMode" type="button">HTML-код</button>
+                                    <button class="btn btn-outline-danger btn-sm" id="clearEditorLinks" type="button">{{ __('ui.remove_links') }}</button>
+                                    <button class="btn btn-outline-secondary btn-sm" id="toggleHtmlMode" type="button">{{ __('ui.html_code') }}</button>
                                 </div>
                             </div>
                             <textarea name="newText" id="editor" rows="16" class="form-control">{!! e(html_entity_decode($indexText->text, ENT_QUOTES, 'UTF-8')) !!}</textarea>
                             <input type="hidden" name="newTextHtml" id="newTextHtml">
                         </div>
                         <input type="hidden" name="url" value="<?php echo $_SERVER['REQUEST_URI']; ?>">
-                        <button class="btn btn-success" id="submit" type="submit">Сохранить</button>
-                        <button class="btn btn-secondary" id="cancelEdit" type="button">Отмена</button>
+                        <button class="btn btn-success" id="submit" type="submit">{{ __('ui.save') }}</button>
+                        <button class="btn btn-secondary" id="cancelEdit" type="button">{{ __('ui.cancel') }}</button>
                     </form>
                 </div>
             @endif
@@ -199,7 +199,7 @@
 
                     _initListeners(resolve, reject, file) {
                         const xhr = this.xhr;
-                        const genericErrorText = `Не удалось загрузить файл: ${file.name}`;
+                        const genericErrorText = `{{ __('ui.upload_error', ['file' => '${file.name}']) }}`;
 
                         xhr.addEventListener('error', () => reject(genericErrorText));
                         xhr.addEventListener('abort', () => reject());
@@ -297,7 +297,7 @@
                         .then(editor => {
                             wysiwygEditor = editor;
                             htmlMode = false;
-                            $('#toggleHtmlMode').text('HTML-код');
+                            $('#toggleHtmlMode').text('{{ __('ui.html_code') }}');
                         })
                         .catch(error => {
                             console.error(error);
@@ -327,7 +327,7 @@
                         wysiwygEditor = null;
                         htmlMode = true;
                         $('#editor').show().addClass('font-monospace').css('min-height', '360px');
-                        $('#toggleHtmlMode').text('Визуальный режим');
+                        $('#toggleHtmlMode').text(@json(__('ui.visual_mode')));
                     });
                 }
 
@@ -357,7 +357,7 @@
                     $(document).on('click touchstart', '#clearEditorLinks', function(e){
                         e.preventDefault();
 
-                        if (!confirm('Убрать все ссылки из текста статьи? Текст и форматирование останутся.')) {
+                        if (!confirm(@json(__('ui.remove_all_links_confirm')))) {
                             return;
                         }
 
@@ -389,17 +389,19 @@
         </div>
         <div class="col-md-7 text-center">
             <hr>
-            <span>Опубликовал(а): @if($userInfo->currname == 0){{$userInfo->name}} @else {{$userInfo->fullname}} @endif</span>
+            <span>{{ __('ui.published_by') }}: @if($userInfo->currname == 0){{$userInfo->name}} @else {{$userInfo->fullname}} @endif</span>
             <br>
-            <span>Просмотров: {{$indexText->views}}</span>
+            <span>{{ __('ui.views') }}: {{$indexText->views}}</span>
             <br>
             <?php
             date_default_timezone_set($settings->timezone); // your user's timezone
             $my_datetime= $indexText->date;
             $numMonth = date('n', strtotime($my_datetime));
-            $array = [1 => 'января', 2 => 'февраля', 3 => 'марта', 4 => 'апреля', 5 => 'мая', 6 => 'июня', 7 => 'июля', 8 => 'августа', 9 => 'сентября', 10 => 'октября', 11 => 'ноября', 12 => 'декабря'];
+            $array = app()->getLocale() === 'en'
+                ? [1 => 'January', 2 => 'February', 3 => 'March', 4 => 'April', 5 => 'May', 6 => 'June', 7 => 'July', 8 => 'August', 9 => 'September', 10 => 'October', 11 => 'November', 12 => 'December']
+                : [1 => 'января', 2 => 'февраля', 3 => 'марта', 4 => 'апреля', 5 => 'мая', 6 => 'июня', 7 => 'июля', 8 => 'августа', 9 => 'сентября', 10 => 'октября', 11 => 'ноября', 12 => 'декабря'];
             ?>
-            <span>Последнее редактирование: <?php echo date('j ' . $array[$numMonth] . ', Y H:i', strtotime("$indexText->date Europe/Moscow")); ?>, Часовой пояс: {{$settings->timezone}}</span>
+            <span>{{ __('ui.last_edit') }}: <?php echo app()->getLocale() === 'en' ? date($array[$numMonth] . ' j, Y H:i', strtotime("$indexText->date Europe/Moscow")) : date('j ' . $array[$numMonth] . ', Y H:i', strtotime("$indexText->date Europe/Moscow")); ?>, {{ __('ui.timezone') }}: {{$settings->timezone}}</span>
 
         </div>
     </div>

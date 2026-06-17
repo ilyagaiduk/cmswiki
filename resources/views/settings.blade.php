@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="ru">
+<html lang="{{ app()->getLocale() }}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Настройки пользователя {{ Auth::user()->name }}</title>
+    <title>{{ __('ui.settings_for', ['name' => Auth::user()->name]) }}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"
           integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous">
     <script
@@ -20,7 +20,7 @@
             <a href="/index"><img src="/img/logo-not-fon.png" width="65px"/></a> <span class="fs-2">{{$settings->title}}</span>
         </div>
         <div class="col-md-8">
-            <div class="fs-5 text-end">@if(Auth::check())<a id="user" class="link-dark" href="#">@if($currName == 0) {{ Auth::user()->name }} @elseif($currName == 1) {{ Auth::user()->fullname }}@endif</a><br><div id="menu" style="display:none; background: #f7fafc; width: 150px; height: 200px" class="col float-end"><a class="link-dark p-3" href="/index">Главная</a><br><br><a class="link-dark p-3" href="{{route('settings')}}">Настройки</a><br><br><a class="link-dark p-3" href="/logout">Выйти</a></div></div> @endif</div>
+            <div class="fs-5 text-end">@if(Auth::check())<a id="user" class="link-dark" href="#">@if($currName == 0) {{ Auth::user()->name }} @elseif($currName == 1) {{ Auth::user()->fullname }}@endif</a><br><div id="menu" style="display:none; background: #f7fafc; width: 150px; height: 200px" class="col float-end"><a class="link-dark p-3" href="/index">{{ __('ui.home') }}</a><br><br><a class="link-dark p-3" href="{{route('settings')}}">{{ __('ui.settings') }}</a><br><br><a class="link-dark p-3" href="/logout">{{ __('ui.logout') }}</a></div></div> @endif</div>
     </div>
 </div>
 </div>
@@ -41,15 +41,15 @@
 
         </div>
         <div class="col-md-7">
-            <h1>Настройки — @if($currName == 0) {{ Auth::user()->name }} @elseif($currName == 1) {{ Auth::user()->fullname }}@endif</h1>
+            <h1>{{ __('ui.settings_for', ['name' => $currName == 0 ? Auth::user()->name : Auth::user()->fullname]) }}</h1>
             <hr>
             <ul class="nav nav-tabs" id="myTab" role="tablist">
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link active" id="home-tab" data-bs-toggle="tab" data-bs-target="#home" type="button" role="tab" aria-controls="home" aria-selected="true">Общие</button>
+                    <button class="nav-link active" id="home-tab" data-bs-toggle="tab" data-bs-target="#home" type="button" role="tab" aria-controls="home" aria-selected="true">{{ __('ui.general') }}</button>
                 </li>
                 @if(Auth::user()->name == 'admin')
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="profile-tab" data-bs-toggle="tab" data-bs-target="#profile" type="button" role="tab" aria-controls="profile" aria-selected="false">Пользователи</button>
+                    <button class="nav-link" id="profile-tab" data-bs-toggle="tab" data-bs-target="#profile" type="button" role="tab" aria-controls="profile" aria-selected="false">{{ __('ui.users') }}</button>
                 </li>
                 @endif
 {{--                <li class="nav-item" role="presentation">--}}
@@ -71,68 +71,75 @@
                            </div>
                        @endif
                        @if(Auth::user()->name == 'admin')
-                       <h2>Часовой пояс</h2>
+                       <h2>{{ __('ui.timezone') }}</h2>
                     <select name="timezone" class="form-control">
                         @foreach($timezones as $value)
                         <option @if(" ".$currentTimezone == $value->timezone) selected @endif value="{{$value->timezone}}">{{$value->utc}}, {{$value->timezone}}</option>
                     @endforeach
                     </select>
                         <hr>
-                        <h2>Заголовок сайта</h2>
-                        <span>Заголовок не более 75 символов</span>
+                        <h2>{{ __('ui.interface_language') }}</h2>
+                        <span>{{ __('ui.interface_language_hint') }}</span>
+                        <select name="interface_language" class="form-control mt-2">
+                            <option value="ru" @if(($settings->language ?? 'ru') == 'ru') selected @endif>{{ __('ui.russian') }}</option>
+                            <option value="en" @if(($settings->language ?? 'ru') == 'en') selected @endif>{{ __('ui.english') }}</option>
+                        </select>
+                        <hr>
+                        <h2>{{ __('ui.site_title') }}</h2>
+                        <span>{{ __('ui.site_title_hint') }}</span>
                         <input name="title" class="form-control mt-2" type="text" value="{{$settings->title}}">
 
                         <hr>
-                        <h2>Имя пользователя</h2>
-                        <span>Введите Имя(не более 100 символов)</span>
+                        <h2>{{ __('ui.user_name') }}</h2>
+                        <span>{{ __('ui.user_name_hint') }}</span>
                         <input name="userName" class="form-control mt-2" type="text" value="{{$userInfo->fullname}}">
-                        <span>Отображать, как:</span>
+                        <span>{{ __('ui.display_as') }}</span>
                         <select class="form-control mt-2" name="currName">
                             <option @if($currName == 0) selected @endif value="0">{{$userInfo->name}}</option>
                             <option @if($currName == 1) selected @endif value="1">{{$userInfo->fullname}}</option>
                         </select>
                            <hr>
-                       <h2>Яндекс Метрика и Google Analytics</h2>
+                       <h2>{{ __('ui.analytics') }}</h2>
                            <textarea class="form-control mb-2" name="metrika" cols="40" rows="10">{{$settings->metrika}}</textarea>
                        <hr>
-                           <h2>Сколько постов на правку отображать? Максимально 5.</h2>
+                           <h2>{{ __('ui.edit_posts_count') }}</h2>
                            <input value="{{$settings->version}}" class="form-control" type="number" min="1" max="5" name="countVersion">
                            <hr>
-                           <h2>Код поисковой формы Яндекс.Поиск для сайта</h2>
-                       <span><a target="_blank" href="https://site.yandex.ru/">Сайт</a></span>
-                       <span> Где показывать результаты поиска(<a href="https://disk.yandex.ru/i/lCpJxVmcB-HsAw">Скрин</a>)</span>
+                           <h2>{{ __('ui.yandex_search_code') }}</h2>
+                       <span><a target="_blank" href="https://site.yandex.ru/">{{ __('ui.site') }}</a></span>
+                       <span> {{ __('ui.search_results_hint') }}(<a href="https://disk.yandex.ru/i/lCpJxVmcB-HsAw">{{ __('ui.screenshot') }}</a>)</span>
                            <textarea class="form-control mt-2 mb-2" name="poisk" cols="40" rows="10">{{$settings->search}}</textarea>
                            <hr>
-                           <h2>Favicon</h2>
-                       <span>Загрузите Favicon в каталог /public/img и вставьте адрес (пример, /img/logo-not-fon.png)</span>
+                           <h2>{{ __('ui.favicon') }}</h2>
+                       <span>{{ __('ui.favicon_hint') }}</span>
                            <input value="{{$settings->favicon}}" class="form-control" type="text" name="favicon">
                            <hr>
                            <br>
                        @elseif(Auth::user()->name != 'admin')
                            <hr>
-                           <h2>Имя пользователя</h2>
-                           <span>Введите Имя(не более 100 символов)</span>
+                           <h2>{{ __('ui.user_name') }}</h2>
+                           <span>{{ __('ui.user_name_hint') }}</span>
                            <input name="userName" class="form-control mt-2" type="text" value="{{$userInfo->fullname}}">
-                           <span>Отображать, как:</span>
+                           <span>{{ __('ui.display_as') }}</span>
                            <select class="form-control mt-2" name="currName">
                                <option @if($currName == 0) selected @endif value="0">{{$userInfo->name}}</option>
                                <option @if($currName == 1) selected @endif value="1">{{$userInfo->fullname}}</option>
                            </select>
                            <hr>
                        @endif
-                        <button class="mt-2 btn btn-success" type="submit">Сохранить</button>
+                        <button class="mt-2 btn btn-success" type="submit">{{ __('ui.save') }}</button>
                     </form>
 
 
                     </div>
                 @if(Auth::user()->name == 'admin')
                 <div class="tab-pane fade" id="profile" role="tabpanel" aria-labelledby="profile-tab">
-<h1>Пользователи</h1>
+<h1>{{ __('ui.users') }}</h1>
                     <table class="table table-responsive">
                         <thead>
-                        <th>Логин</th>
-                        <th>Полное имя</th>
-                        <th>Email</th>
+                        <th>{{ __('ui.login_name') }}</th>
+                        <th>{{ __('ui.full_name') }}</th>
+                        <th>{{ __('ui.email') }}</th>
                         @foreach($profiles as $value)
                         <tr>
                             <td>{{$value->name}}</td>

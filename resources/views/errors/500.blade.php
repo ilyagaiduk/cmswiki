@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="ru">
+<html lang="{{ app()->getLocale() }}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Ошибка 500</title>
+    <title>{{ __('ui.error_500_title') }}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"
           integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous">
     <script
@@ -33,8 +33,8 @@
 
         </div>
         <div class="col-md-7">
-            <h1>Ошибка 500 - сервер не справился(</h1>
-            <span>Проблема на стороне сервера, попробуйте перейти на главную.</span>
+            <h1>{{ __('ui.error_500_h1') }}</h1>
+            <span>{{ __('ui.error_500_text') }}</span>
 
         </div>
 

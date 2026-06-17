@@ -5,10 +5,21 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class SettingsController extends Controller
 {
+    private function ensureLanguageColumn()
+    {
+        if (Schema::hasTable('settings') && !Schema::hasColumn('settings', 'language')) {
+            Schema::table('settings', function ($table) {
+                $table->string('language', 2)->default('ru');
+            });
+        }
+    }
+
     public function settings(Request $request) {
+        $this->ensureLanguageColumn();
         $user = Auth::user();
         $profiles = DB::table('users')->orderBy('name', 'asc')->get();
         $userInfo = DB::table('users')->where('id', $user->id)->first();
@@ -21,6 +32,7 @@ class SettingsController extends Controller
         return view('settings', ['timezones' => $timezones, 'currentTimezone' => $currentTimezone, 'settings' => $settings, 'userInfo' => $userInfo, 'userName' => $userName, 'currName' => $currName, 'profiles' => $profiles]);
     }
     public function getSettings(Request $request) {
+        $this->ensureLanguageColumn();
         if ($request->isMethod('post'))
         {
             $user = Auth::user();
@@ -40,6 +52,7 @@ class SettingsController extends Controller
                 $this->validate($request, [
                     'title' => 'required|max:75',
                     'userName' => 'max:100',
+                    'interface_language' => 'in:ru,en',
                 ]);
                 $favicon = $request->favicon;
                 $updateFavicon =  DB::table('settings')
@@ -66,6 +79,11 @@ class SettingsController extends Controller
                 $updateTitle =  DB::table('settings')
                     ->where('id', '=', 1)
                     ->update(['title' => $request->title,
+                    ]);
+                $interfaceLanguage = in_array($request->interface_language, ['ru', 'en'], true) ? $request->interface_language : 'ru';
+                $updateLanguage =  DB::table('settings')
+                    ->where('id', '=', 1)
+                    ->update(['language' => $interfaceLanguage,
                     ]);
                 $updateTimezone =  DB::table('settings')
                     ->where('id', '=', 1)

@@ -232,7 +232,7 @@ class IndexController extends Controller
         $newUrlData = DB::table('page')->where('url', '=', $url)->get();
         if(count($newUrlData) == 0) {
             DB::table('page')->insert([
-                ['url' => $url, 'h1' => 'Наша новая статья', 'text' => '<p>Здесь должен быть лаконичный текст :)</p>', 'views' => 1, 'img' => '/img/logo-wiki.webp', 'date' => date('Y-m-d H:i:s')],
+                ['url' => $url, 'h1' => __('ui.new_article_h1'), 'text' => __('ui.new_article_text'), 'views' => 1, 'img' => '/img/logo-wiki.webp', 'date' => date('Y-m-d H:i:s')],
             ]);
         }
             $userInfo = DB::table('users')->where('name', 'admin')->first();
@@ -276,14 +276,14 @@ class IndexController extends Controller
                         'date' => date('Y-m-d H:i:s'),
                     ]);
                 return back()
-                    ->with('success', 'Текст успешно отредактирован!');
+                    ->with('success', __('ui.updated_successfully'));
             }
             elseif($user->name != 'admin') {
                 DB::table('moderate')->insert([
                     ['url' => $request->url, 'h1' => $newh1, 'text' => $newText, 'date' => date('Y-m-d H:i:s'), 'user' => $user->name],
                 ]);
                 return back()
-                    ->with('success', 'Текст отправлен на модерацию!');
+                    ->with('success', __('ui.sent_to_moderation'));
             }
         }
 
@@ -305,7 +305,7 @@ class IndexController extends Controller
                 ]);
             // Возврат или сообщение об успехе
             return back()
-                ->with('success', 'Изображение успешно загружено!')
+                ->with('success', __('ui.image_uploaded'))
                 ->with('image', 'uploads/' . $imageName);
 
         }
@@ -314,7 +314,7 @@ class IndexController extends Controller
         public function uploadEditorImage(Request $request) {
             if (!Auth::check() || Auth::user()->name !== 'admin') {
                 return response()->json([
-                    'error' => ['message' => 'Недостаточно прав для загрузки изображения.']
+                    'error' => ['message' => __('ui.upload_no_rights')]
                 ], 403);
             }
 
@@ -334,10 +334,10 @@ class IndexController extends Controller
             $url = $request->url3;
             $updateImg =  DB::table('page')
                 ->where('url', '=', $url)
-                ->update(['h1' => 'Страница удалена', 'text' => '<p>Страница больше не используется.</p>', 'img' => '/img/logo-wiki.webp',
+                ->update(['h1' => 'Страница удалена', 'text' => __('ui.deleted_page_text'), 'img' => '/img/logo-wiki.webp',
                 ]);
             return redirect('/index')
-                ->with('success', 'Страница успешно удалена!');
+                ->with('success', __('ui.page_deleted'));
 
         }
         public function random(Request $request) {
@@ -359,7 +359,7 @@ class IndexController extends Controller
                 if($request->type =='delete'){
                     DB::delete("delete from moderate where text = '{$request->text}' AND h1 = '{$request->h1}'");
                     return redirect('/moderate')
-                        ->with('success', 'Страница успешно удалена!');
+                        ->with('success', __('ui.page_deleted'));
                 }
                 else{
                     $article = DB::table('moderate')->where(['text' ,'=', $request->text], ['h1' ,'=', $request->h1])->first();
@@ -369,7 +369,7 @@ class IndexController extends Controller
                         ]);
                     DB::delete("delete from moderate where text = '{$request->text}' AND h1 = '{$request->h1}'");
                     return redirect('/moderate')
-                        ->with('success', 'Страница успешно обновлена!');
+                        ->with('success', __('ui.page_updated'));
                 }
 
 

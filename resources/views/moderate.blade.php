@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="ru">
+<html lang="{{ app()->getLocale() }}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Модерация</title>
+    <title>{{ __('ui.moderation') }}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"
           integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous">
     <script
@@ -20,7 +20,7 @@
             <a href="/index"><img src="/img/logo-not-fon.png" width="65px"/></a> <span class="fs-2">{{$settings->title}}</span>
         </div>
         <div class="col-md-8">
-            <div class="fs-5 text-end">@if(Auth::check())<a id="user" class="link-dark" href="#">@if($currName == 0) {{ Auth::user()->name }} @elseif($currName == 1) {{ Auth::user()->fullname }}@endif</a><br><div id="menu" style="display:none; background: #f7fafc; width: 150px; height: 200px" class="col float-end"><a class="link-dark p-3" href="/index">Главная</a><br><br><a class="link-dark p-3" href="{{ route('settings') }}">Настройки</a><br><br><a class="link-dark p-3" href="/logout">Выйти</a></div></div> @else <a class="pe-3 link-dark" href="/login">Войти</a>   <a class="link-dark" href="/register">Регистрация</a>@endif</div>
+            <div class="fs-5 text-end">@if(Auth::check())<a id="user" class="link-dark" href="#">@if($currName == 0) {{ Auth::user()->name }} @elseif($currName == 1) {{ Auth::user()->fullname }}@endif</a><br><div id="menu" style="display:none; background: #f7fafc; width: 150px; height: 200px" class="col float-end"><a class="link-dark p-3" href="/index">{{ __('ui.home') }}</a><br><br><a class="link-dark p-3" href="{{ route('settings') }}">{{ __('ui.settings') }}</a><br><br><a class="link-dark p-3" href="/logout">{{ __('ui.logout') }}</a></div></div> @else <a class="pe-3 link-dark" href="/login">{{ __('ui.login') }}</a>   <a class="link-dark" href="/register">{{ __('ui.register') }}</a>@endif</div>
     </div>
 </div>
 </div>
@@ -47,7 +47,7 @@
                 @if(Auth::check())
 
                 @if(Auth::user()->name == 'admin')
-                    <div class="text-center"><a href="{{route('moderate')}}">Правки</a></div>
+                    <div class="text-center"><a href="{{route('moderate')}}">{{ __('ui.edits') }}</a></div>
 @endif
                 @endif
             </div>
@@ -59,14 +59,14 @@
             @if(Auth::check())
                 @if(Auth::user()->name == 'admin')
 <table class="table table-responsive">
-    <h1>Тексты, отправленные на правку</h1>
+    <h1>{{ __('ui.texts_for_moderation') }}</h1>
     <thead>
     <th>URL</th>
-    <th>Заголовок</th>
-    <th>Текст</th>
+    <th>{{ __('ui.title') }}</th>
+    <th>{{ __('ui.text') }}</th>
     <th>User</th>
-    <th>Дата</th>
-    <td>Править</td>
+    <th>{{ __('ui.date') }}</th>
+    <td>{{ __('ui.edit') }}</td>
     </thead>
     @foreach($articles as $value)
         <tr>
@@ -82,7 +82,7 @@
                 <input type="hidden" name="text" value="{{$value->text}}">
                 <input type="hidden" name="h1" value="{{$value->h1}}">
                 <input type="hidden" name="type" value="success">
-                <button type="submit" class="btn btn-success">Одобрить</button>
+                <button type="submit" class="btn btn-success">{{ __('ui.approve') }}</button>
 
             </form>
             <form class="mt-2" method="post">
@@ -91,7 +91,7 @@
                 <input type="hidden" name="text" value="{{$value->text}}">
                 <input type="hidden" name="h1" value="{{$value->h1}}">
                 <input type="hidden" name="type" value="delete">
-                <button type="submit" class="btn btn-warning">Удалить</button>
+                <button type="submit" class="btn btn-warning">{{ __('ui.delete') }}</button>
             </form>
             </td>
         </tr>
