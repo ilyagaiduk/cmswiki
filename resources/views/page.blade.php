@@ -3,6 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{$indexText->h1}} — {{$settings->title}}</title>
     <meta property="og:title" content="{{$indexText->h1}}"/>
     <meta property="og:description" content="Самая занимательная вики энциклопедия — {{$settings->title}}"/>
@@ -15,6 +16,31 @@
         crossorigin="anonymous">
     </script>
     <link rel="icon" type="image/png" href="{{$settings->favicon}}">
+    <script src="https://cdn.ckeditor.com/ckeditor5/41.4.2/classic/ckeditor.js"></script>
+    <style>
+        .ck-editor__editable_inline {
+            min-height: 360px;
+        }
+        #editBox {
+            display: none;
+        }
+        #editBox .form-control {
+            border-radius: .375rem;
+        }
+        #text img,
+        .ck-content img {
+            max-width: 100%;
+            height: auto;
+            display: block;
+        }
+        #text figure.image {
+            margin: 1rem 0;
+        }
+        #text figure.image img {
+            margin-left: auto;
+            margin-right: auto;
+        }
+    </style>
 </head>
 <body>
 <div class="container">
@@ -105,7 +131,26 @@
             </div>@endif
             <h1 id="h1">{{$indexText->h1}}</h1>
             <hr>
-            <div id="text">{!! $indexText->text !!}</div>
+            <div id="text">{!! html_entity_decode($indexText->text, ENT_QUOTES, 'UTF-8') !!}</div>
+
+            @if(Auth::check())
+                <div id="editBox" class="mt-3">
+                    <form id="formText" method="post" action="/savemain">
+                        @csrf
+                        <div class="mb-3">
+                            <label for="newh1" class="form-label">Заголовок</label>
+                            <input name="newh1" id="newh1" class="form-control" type="text" value="{{ $indexText->h1 }}">
+                        </div>
+                        <div class="mb-3">
+                            <label for="editor" class="form-label">Текст статьи</label>
+                            <textarea name="newText" id="editor" rows="16" class="form-control">{{ html_entity_decode($indexText->text, ENT_QUOTES, 'UTF-8') }}</textarea>
+                        </div>
+                        <input type="hidden" name="url" value="<?php echo $_SERVER['REQUEST_URI']; ?>">
+                        <button class="btn btn-success" id="submit" type="submit">Сохранить</button>
+                        <button class="btn btn-secondary" id="cancelEdit" type="button">Отмена</button>
+                    </form>
+                </div>
+            @endif
             <br>
                 @if(Auth::check())
                     @if(Auth::user()->name == 'admin')
@@ -128,27 +173,130 @@
                     @endif
         </div>
         <script>
-            $(document).ready(function() {
-                $(document).on('click touchstart', '#pencil', function(){
-                    let header = $("#h1").text();
-                    $('#h1').append('<form id=\'formText\' method=\'post\' action=\'/savemain\'> @csrf <input name=\'newh1\' class=\'form-control\' type=\'text\' value=\''+ header +'\'>');
-                    let text = $("#text").html();
-                    $('#h1').append('<br><textarea form=\'formText\' name=\'newText\' id=\'textarea\' rows=\'10\' class=\'form-control\'>'+ text +'</textarea>');
-                    $('#h1').append('<input form=\'formText\' type=\'hidden\' name=\'url\' value=\'<?php echo $_SERVER['REQUEST_URI']; ?>\'>');
-                    $('#h1').append('<br><button class=\'btn btn-success\' id=\'submit\' type=\'submit\'>Сохранить</button></form>');
-                    $('#pencil').remove();
+                let wysiwygEditor = null;
 
+                function startEditor() {
+                    $('#text').hide();
+                    $('#editBox').show();
+                    $('#pencil').hide();
+
+                    if (!wysiwygEditor) {
+                        class UploadAdapter {
+                            constructor(loader) {
+                                this.loader = loader;
+                                this.xhr = null;
+                            }
+
+                            upload() {
+                                return this.loader.file.then(file => new Promise((resolve, reject) => {
+                                    this._initRequest();
+                                    this._initListeners(resolve, reject, file);
+                                    this._sendRequest(file);
+                                }));
+                            }
+
+                            abort() {
+                                if (this.xhr) {
+                                    this.xhr.abort();
+                                }
+                            }
+
+                            _initRequest() {
+                                const xhr = this.xhr = new XMLHttpRequest();
+                                xhr.open('POST', '/ckeditor/upload', true);
+                                xhr.setRequestHeader('X-CSRF-TOKEN', document.querySelector('meta[name="csrf-token"]').getAttribute('content'));
+                                xhr.responseType = 'json';
+                            }
+
+                            _initListeners(resolve, reject, file) {
+                                const xhr = this.xhr;
+                                const genericErrorText = `Не удалось загрузить файл: ${file.name}`;
+
+                                xhr.addEventListener('error', () => reject(genericErrorText));
+                                xhr.addEventListener('abort', () => reject());
+                                xhr.addEventListener('load', () => {
+                                    const response = xhr.response;
+
+                                    if (!response || response.error) {
+                                        return reject(response && response.error ? response.error.message : genericErrorText);
+                                    }
+
+                                    resolve({
+                                        default: response.url
+                                    });
+                                });
+
+                                if (xhr.upload) {
+                                    xhr.upload.addEventListener('progress', evt => {
+                                        if (evt.lengthComputable) {
+                                            this.loader.uploadTotal = evt.total;
+                                            this.loader.uploaded = evt.loaded;
+                                        }
+                                    });
+                                }
+                            }
+
+                            _sendRequest(file) {
+                                const data = new FormData();
+                                data.append('upload', file);
+                                this.xhr.send(data);
+                            }
+                        }
+
+                        function UploadAdapterPlugin(editor) {
+                            editor.plugins.get('FileRepository').createUploadAdapter = loader => new UploadAdapter(loader);
+                        }
+
+                        ClassicEditor
+                            .create(document.querySelector('#editor'), {
+                                extraPlugins: [UploadAdapterPlugin],
+                                toolbar: [
+                                    'heading', '|',
+                                    'bold', 'italic', 'link', 'bulletedList', 'numberedList', '|',
+                                    'imageUpload', 'blockQuote', 'insertTable', 'mediaEmbed', 'undo', 'redo'
+                                ],
+                                image: {
+                                    toolbar: [
+                                        'imageTextAlternative',
+                                        'toggleImageCaption',
+                                        'imageStyle:inline',
+                                        'imageStyle:block',
+                                        'imageStyle:side'
+                                    ]
+                                },
+                                table: {
+                                    contentToolbar: ['tableColumn', 'tableRow', 'mergeTableCells']
+                                }
+                            })
+                            .then(editor => {
+                                wysiwygEditor = editor;
+                            })
+                            .catch(error => {
+                                console.error(error);
+                            });
+                    }
+                }
+
+                $(document).ready(function() {
+                    $(document).on('click touchstart', '#pencil', function(e){
+                        e.preventDefault();
+                        startEditor();
+                    });
+
+                    $('#formText').on('submit', function(){
+                        if (wysiwygEditor) {
+                            $('#editor').val(wysiwygEditor.getData());
+                        }
+                    });
+
+                    $(document).on('click touchstart', '#cancelEdit', function(e){
+                        e.preventDefault();
+                        $('#editBox').hide();
+                        $('#text').show();
+                        $('#pencil').show();
+                    });
                 });
-            });
-            $(function() {
-                $(document).on('click touchstart', '#submit', function(){
-                    $('#formText').submit();
-                });
-            });
-
-
-
-        </script>
+            </script>
     </div>
     <div class="row">
         <div class="col-md-5">

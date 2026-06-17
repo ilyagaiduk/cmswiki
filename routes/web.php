@@ -26,6 +26,7 @@ Route::match(['get', 'post'],'/moderate', [IndexController::class, 'moderate'])-
 Route::match(['get', 'post'],'/settings', [SettingsController::class, 'settings'])->middleware(['auth'])->name('settings');
 Route::match(['get', 'post'],'/getsettings', [SettingsController::class, 'getSettings'])->middleware(['auth'])->name('getSettings');
 Route::match(['get', 'post'],'/savemain', [IndexController::class, 'saveMain'])->middleware(['auth'])->name('saveMain');
+Route::post('/ckeditor/upload', [IndexController::class, 'uploadEditorImage'])->name('ckeditor.upload');
 Route::match(['get', 'post'],'/savemainimage', [IndexController::class, 'saveMainImage'])->middleware(['auth'])->name('saveMainImage');
 //})->middleware(['auth'])->name('dashboard');
 

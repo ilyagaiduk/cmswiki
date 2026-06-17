@@ -7,6 +7,57 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\File;
 class IndexController extends Controller
 {
+    /**
+     * Нормализует внутренний URL страницы для сравнения ссылок.
+     */
+    private function normalizePageUrl($url)
+    {
+        $path = parse_url(trim((string) $url), PHP_URL_PATH);
+
+        if (!$path) {
+            return null;
+        }
+
+        $path = '/' . ltrim($path, '/');
+        $path = rtrim($path, '/');
+
+        return $path === '' ? '/' : $path;
+    }
+
+    /**
+     * Проверяет, есть ли на запрашиваемую страницу прямая ссылка в текстах статей.
+     * Учитываются относительные и абсолютные ссылки вида /index/page и https://site.ru/index/page.
+     */
+    private function hasDirectTextLinkToPage($targetUrl)
+    {
+        $targetUrl = $this->normalizePageUrl($targetUrl);
+
+        if (!$targetUrl || $targetUrl === '/index') {
+            return true;
+        }
+
+        $pages = DB::table('page')
+            ->where('h1', '!=', 'Страница удалена')
+            ->whereNotNull('text')
+            ->pluck('text');
+
+        foreach ($pages as $text) {
+            if (!is_string($text) || $text === '') {
+                continue;
+            }
+
+            preg_match_all('/<a\s+[^>]*href=["\']([^"\']+)["\']/iu', $text, $matches);
+
+            foreach ($matches[1] ?? [] as $href) {
+                if ($this->normalizePageUrl(html_entity_decode($href, ENT_QUOTES, 'UTF-8')) === $targetUrl) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
     public function index() {
         $userInfo = DB::table('users')->where('name', 'admin')->first();
         $currName = 1;
@@ -24,10 +75,16 @@ class IndexController extends Controller
         return view('dashboard', ['indexText' => $indexText, 'settings' => $settings, 'userInfo' => $userInfo, 'currName' => $currName, 'countModerate' => $countModerate]);
     }
     public function newPage(Request $request) {
-        $newUrlData = DB::table('page')->where('url' , '=', '/index/'.$request->id)->get();
+        $url = $this->normalizePageUrl('/index/' . $request->id);
+
+        if (!$this->hasDirectTextLinkToPage($url)) {
+            abort(404);
+        }
+
+        $newUrlData = DB::table('page')->where('url', '=', $url)->get();
         if(count($newUrlData) == 0) {
             DB::table('page')->insert([
-                ['url' => '/index/'.$request->id, 'h1' => 'Наша новая статья', 'text' => '<p>Здесь должен быть лаконичный текст :)</p>', 'views' => 1, 'img' => '/img/logo-wiki.webp', 'date' => date('Y-m-d H:i:s')],
+                ['url' => $url, 'h1' => 'Наша новая статья', 'text' => '<p>Здесь должен быть лаконичный текст :)</p>', 'views' => 1, 'img' => '/img/logo-wiki.webp', 'date' => date('Y-m-d H:i:s')],
             ]);
         }
             $userInfo = DB::table('users')->where('name', 'admin')->first();
@@ -37,10 +94,15 @@ class IndexController extends Controller
                 $currName = $user->currname;
             }
             $settings = DB::table('settings')->first();//загружаем настройки
-            $indexText = DB::table('page')->where('url', '=', '/index/' . $request->id)->first();
+            $indexText = DB::table('page')->where('url', '=', $url)->first();
+
+            if (!$indexText || $indexText->h1 === 'Страница удалена') {
+                abort(404);
+            }
+
             $i = 0;
             $updateViews = DB::table('page')
-                ->where('url', '=', '/index/' . $request->id)
+                ->where('url', '=', $url)
                 ->increment('views');
         $countModerate = DB::table('moderate')->count();
 
@@ -95,6 +157,26 @@ class IndexController extends Controller
                 ->with('image', 'uploads/' . $imageName);
 
         }
+        }
+
+        public function uploadEditorImage(Request $request) {
+            if (!Auth::check() || Auth::user()->name !== 'admin') {
+                return response()->json([
+                    'error' => ['message' => 'Недостаточно прав для загрузки изображения.']
+                ], 403);
+            }
+
+            $request->validate([
+                'upload' => 'required|image|mimes:jpeg,png,jpg,gif,svg,webp|max:5120',
+            ]);
+
+            $file = $request->file('upload');
+            $imageName = 'editor_' . time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+            $file->move(public_path('uploads'), $imageName);
+
+            return response()->json([
+                'url' => '/uploads/' . $imageName,
+            ]);
         }
         public function deletePage(Request $request) {
             $url = $request->url3;
