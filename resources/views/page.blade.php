@@ -157,9 +157,12 @@
                         <div class="mb-3">
                             <div class="d-flex justify-content-between align-items-center mb-2">
                                 <label for="editor" class="form-label mb-0">Текст статьи</label>
-                                <button class="btn btn-outline-secondary btn-sm" id="toggleHtmlMode" type="button">HTML-код</button>
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-outline-danger btn-sm" id="clearEditorLinks" type="button">Убрать ссылки</button>
+                                    <button class="btn btn-outline-secondary btn-sm" id="toggleHtmlMode" type="button">HTML-код</button>
+                                </div>
                             </div>
-                            <textarea name="newText" id="editor" rows="16" class="form-control">{{ html_entity_decode($indexText->text, ENT_QUOTES, 'UTF-8') }}</textarea>
+                            <textarea name="newText" id="editor" rows="16" class="form-control">{!! e(html_entity_decode($indexText->text, ENT_QUOTES, 'UTF-8')) !!}</textarea>
                             <input type="hidden" name="newTextHtml" id="newTextHtml">
                         </div>
                         <input type="hidden" name="url" value="<?php echo $_SERVER['REQUEST_URI']; ?>">
@@ -255,6 +258,37 @@
                     }
                 }
 
+                function normalizeEditorLinks(html, forceClearAllLinks = false) {
+                    const wrapper = document.createElement('div');
+                    wrapper.innerHTML = html || '';
+
+                    const totalTextLength = (wrapper.textContent || '').trim().length;
+                    let linkedTextLength = 0;
+
+                    wrapper.querySelectorAll('a').forEach(link => {
+                        linkedTextLength += (link.textContent || '').trim().length;
+                    });
+
+                    const linkRatio = totalTextLength > 0 ? linkedTextLength / totalTextLength : 0;
+                    const looksLikeWholeArticleLink = totalTextLength > 120 && linkRatio > 0.75;
+
+                    wrapper.querySelectorAll('a').forEach(link => {
+                        const href = (link.getAttribute('href') || '').trim();
+                        const hasBlockContent = !!link.querySelector('p, div, ul, ol, li, h1, h2, h3, h4, h5, h6, blockquote, table, figure, img, iframe');
+                        const unsafeHref = href.toLowerCase().startsWith('javascript:');
+
+                        if (forceClearAllLinks || looksLikeWholeArticleLink || hasBlockContent || unsafeHref || href === '') {
+                            const fragment = document.createDocumentFragment();
+                            while (link.firstChild) {
+                                fragment.appendChild(link.firstChild);
+                            }
+                            link.replaceWith(fragment);
+                        }
+                    });
+
+                    return wrapper.innerHTML;
+                }
+
                 function UploadAdapterPlugin(editor) {
                     editor.plugins.get('FileRepository').createUploadAdapter = loader => new UploadAdapter(loader);
                 }
@@ -282,6 +316,7 @@
 
                 function createVisualEditor() {
                     $('#editor').removeClass('font-monospace');
+                    $('#editor').val(normalizeEditorLinks($('#editor').val()));
 
                     return ClassicEditor
                         .create(document.querySelector('#editor'), editorConfig)
@@ -345,8 +380,22 @@
                         }
                     });
 
+                    $(document).on('click touchstart', '#clearEditorLinks', function(e){
+                        e.preventDefault();
+
+                        if (!confirm('Убрать все ссылки из текста статьи? Текст и форматирование останутся.')) {
+                            return;
+                        }
+
+                        if (wysiwygEditor) {
+                            wysiwygEditor.setData(normalizeEditorLinks(wysiwygEditor.getData(), true));
+                        } else {
+                            $('#editor').val(normalizeEditorLinks($('#editor').val(), true));
+                        }
+                    });
+
                     $('#formText').on('submit', function(){
-                        const editorHtml = wysiwygEditor ? wysiwygEditor.getData() : $('#editor').val();
+                        const editorHtml = normalizeEditorLinks(wysiwygEditor ? wysiwygEditor.getData() : $('#editor').val());
                         $('#editor').val(editorHtml);
                         $('#newTextHtml').val(editorHtml);
                     });

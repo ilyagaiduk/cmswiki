@@ -58,6 +58,153 @@ class IndexController extends Controller
         return false;
     }
 
+
+    /**
+     * Чистит HTML из редактора от битых ссылок, из-за которых CKEditor может
+     * воспринимать всю статью как одну ссылку и падать при удалении link.
+     */
+    private function stripAnchorTags($html)
+    {
+        $html = preg_replace('/<a\b[^>]*>/iu', '', (string) $html);
+        return preg_replace('/<\/a>/iu', '', (string) $html);
+    }
+
+    private function sanitizeEditorHtmlWithoutDom($html)
+    {
+        $html = (string) $html;
+
+        if ($html === '') {
+            return $html;
+        }
+
+        $openLinks = preg_match_all('/<a\b[^>]*>/iu', $html);
+        $closeLinks = preg_match_all('/<\/a>/iu', $html);
+
+        // Главная причина текущего бага: в статье есть незакрытый <a>,
+        // из-за чего браузер растягивает ссылку на форму редактирования.
+        if ($openLinks !== $closeLinks) {
+            return $this->stripAnchorTags($html);
+        }
+
+        $plainTextLength = mb_strlen(trim(strip_tags($html)), 'UTF-8');
+        $linkedTextLength = 0;
+
+        preg_match_all('/<a\b[^>]*>(.*?)<\/a>/isu', $html, $matches);
+        foreach ($matches[1] ?? [] as $linkedHtml) {
+            $linkedTextLength += mb_strlen(trim(strip_tags($linkedHtml)), 'UTF-8');
+        }
+
+        if ($plainTextLength > 120 && $linkedTextLength / max($plainTextLength, 1) > 0.75) {
+            return $this->stripAnchorTags($html);
+        }
+
+        $blockTagsPattern = '<\s*(p|div|ul|ol|li|h1|h2|h3|h4|h5|h6|blockquote|table|figure|img|iframe)\b';
+
+        return preg_replace_callback('/<a\b([^>]*)>(.*?)<\/a>/isu', function ($match) use ($blockTagsPattern) {
+            $attributes = $match[1] ?? '';
+            $content = $match[2] ?? '';
+
+            $isUnsafe = preg_match('/href\s*=\s*["\']?\s*javascript\s*:/iu', $attributes);
+            $hasEmptyHref = preg_match('/href\s*=\s*(["\'])\s*\1/iu', $attributes);
+            $hasBlockContent = preg_match('/' . $blockTagsPattern . '/iu', $content);
+
+            if ($isUnsafe || $hasEmptyHref || $hasBlockContent) {
+                return $content;
+            }
+
+            return $match[0];
+        }, $html);
+    }
+
+    /**
+     * Чистит HTML из редактора от битых ссылок, из-за которых CKEditor может
+     * воспринимать всю статью как одну ссылку, а браузер — растягивать <a>
+     * на поля и кнопки админки.
+     */
+    private function sanitizeEditorHtml($html)
+    {
+        $html = (string) $html;
+
+        if ($html === '') {
+            return $html;
+        }
+
+        // Быстрая обязательная проверка работает даже без PHP DOM extension.
+        $html = $this->sanitizeEditorHtmlWithoutDom($html);
+
+        if (!class_exists('DOMDocument')) {
+            return $html;
+        }
+
+        $previous = libxml_use_internal_errors(true);
+        $dom = new \DOMDocument('1.0', 'UTF-8');
+        $dom->loadHTML('<?xml encoding="UTF-8"><div id="editor-root">' . $html . '</div>', LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
+        libxml_clear_errors();
+        libxml_use_internal_errors($previous);
+
+        $xpath = new \DOMXPath($dom);
+        $root = $dom->getElementById('editor-root');
+
+        if (!$root) {
+            return $html;
+        }
+
+        $totalTextLength = mb_strlen(trim($root->textContent ?? ''), 'UTF-8');
+        $linkedTextLength = 0;
+        $links = [];
+
+        foreach ($xpath->query('.//a', $root) as $link) {
+            $links[] = $link;
+            $linkedTextLength += mb_strlen(trim($link->textContent ?? ''), 'UTF-8');
+        }
+
+        $looksLikeWholeArticleLink = $totalTextLength > 120 && $linkedTextLength / max($totalTextLength, 1) > 0.75;
+        $blockTags = ['p','div','ul','ol','li','h1','h2','h3','h4','h5','h6','blockquote','table','figure','img','iframe'];
+
+        foreach ($links as $link) {
+            $href = trim($link->getAttribute('href'));
+            $unsafeHref = stripos($href, 'javascript:') === 0;
+            $hasBlockContent = false;
+
+            foreach ($blockTags as $tag) {
+                if ($link->getElementsByTagName($tag)->length > 0) {
+                    $hasBlockContent = true;
+                    break;
+                }
+            }
+
+            if ($looksLikeWholeArticleLink || $hasBlockContent || $unsafeHref || $href === '') {
+                while ($link->firstChild) {
+                    $link->parentNode->insertBefore($link->firstChild, $link);
+                }
+                $link->parentNode->removeChild($link);
+            }
+        }
+
+        $clean = '';
+        foreach ($root->childNodes as $child) {
+            $clean .= $dom->saveHTML($child);
+        }
+
+        return $clean;
+    }
+
+    /**
+     * Готовит HTML статьи к безопасному выводу в шаблоне и открытию в CKEditor.
+     * Это важно для старых материалов с незакрытым <a>, когда ссылка визуально
+     * захватывает форму редактирования, кнопки и поля админки.
+     */
+    private function preparePageTextForView($indexText)
+    {
+        if ($indexText && isset($indexText->text)) {
+            $indexText->text = $this->sanitizeEditorHtml(
+                html_entity_decode((string) $indexText->text, ENT_QUOTES | ENT_HTML5, 'UTF-8')
+            );
+        }
+
+        return $indexText;
+    }
+
     public function index() {
         $userInfo = DB::table('users')->where('name', 'admin')->first();
         $currName = 1;
@@ -67,6 +214,7 @@ class IndexController extends Controller
             }
         $settings = DB::table('settings')->first();//загружаем настройки
         $indexText = DB::table('page')->where('url' , '=', '/index')->first();
+        $indexText = $this->preparePageTextForView($indexText);
         $i = 0;
         $updateViews =  DB::table('page')
             ->where('url', '=', '/index')
@@ -100,6 +248,8 @@ class IndexController extends Controller
                 abort(404);
             }
 
+            $indexText = $this->preparePageTextForView($indexText);
+
             $i = 0;
             $updateViews = DB::table('page')
                 ->where('url', '=', $url)
@@ -114,6 +264,7 @@ class IndexController extends Controller
             $newh1 = $request->newh1;
             $newText = $request->input('newTextHtml', $request->newText);
             $newText = html_entity_decode($newText, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            $newText = $this->sanitizeEditorHtml($newText);
             $url = $request->url;
             date_default_timezone_set('Europe/Moscow');
             $user = Auth::user();
