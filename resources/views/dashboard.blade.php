@@ -40,6 +40,19 @@
             margin-left: auto;
             margin-right: auto;
         }
+        #text blockquote,
+        .ck-content blockquote {
+            border-left: 5px solid #198754;
+            margin: 1.25rem 0;
+            padding: .75rem 1rem;
+            background: #f8f9fa;
+            color: #333;
+            font-style: italic;
+        }
+        #text blockquote p,
+        .ck-content blockquote p {
+            margin-bottom: 0;
+        }
     </style>
 </head>
 <body>
@@ -135,8 +148,12 @@
                             <input name="newh1" id="newh1" class="form-control" type="text" value="{{ $indexText->h1 }}">
                         </div>
                         <div class="mb-3">
-                            <label for="editor" class="form-label">Текст статьи</label>
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <label for="editor" class="form-label mb-0">Текст статьи</label>
+                                <button class="btn btn-outline-secondary btn-sm" id="toggleHtmlMode" type="button">HTML-код</button>
+                            </div>
                             <textarea name="newText" id="editor" rows="16" class="form-control">{{ html_entity_decode($indexText->text, ENT_QUOTES, 'UTF-8') }}</textarea>
+                            <input type="hidden" name="newTextHtml" id="newTextHtml">
                         </div>
                         <input type="hidden" name="url" value="<?php echo $_SERVER['REQUEST_URI']; ?>">
                         <button class="btn btn-success" id="submit" type="submit">Сохранить</button>
@@ -147,82 +164,76 @@
             <br>
         </div>
 <script>
-    let wysiwygEditor = null;
+                let wysiwygEditor = null;
+                let htmlMode = false;
 
-    function startEditor() {
-        $('#text').hide();
-        $('#editBox').show();
-        $('#pencil').hide();
-
-        if (!wysiwygEditor) {
-            class UploadAdapter {
-                constructor(loader) {
-                    this.loader = loader;
-                    this.xhr = null;
-                }
-
-                upload() {
-                    return this.loader.file.then(file => new Promise((resolve, reject) => {
-                        this._initRequest();
-                        this._initListeners(resolve, reject, file);
-                        this._sendRequest(file);
-                    }));
-                }
-
-                abort() {
-                    if (this.xhr) {
-                        this.xhr.abort();
+                class UploadAdapter {
+                    constructor(loader) {
+                        this.loader = loader;
+                        this.xhr = null;
                     }
-                }
 
-                _initRequest() {
-                    const xhr = this.xhr = new XMLHttpRequest();
-                    xhr.open('POST', '/ckeditor/upload', true);
-                    xhr.setRequestHeader('X-CSRF-TOKEN', document.querySelector('meta[name="csrf-token"]').getAttribute('content'));
-                    xhr.responseType = 'json';
-                }
+                    upload() {
+                        return this.loader.file.then(file => new Promise((resolve, reject) => {
+                            this._initRequest();
+                            this._initListeners(resolve, reject, file);
+                            this._sendRequest(file);
+                        }));
+                    }
 
-                _initListeners(resolve, reject, file) {
-                    const xhr = this.xhr;
-                    const genericErrorText = `Не удалось загрузить файл: ${file.name}`;
-
-                    xhr.addEventListener('error', () => reject(genericErrorText));
-                    xhr.addEventListener('abort', () => reject());
-                    xhr.addEventListener('load', () => {
-                        const response = xhr.response;
-
-                        if (!response || response.error) {
-                            return reject(response && response.error ? response.error.message : genericErrorText);
+                    abort() {
+                        if (this.xhr) {
+                            this.xhr.abort();
                         }
+                    }
 
-                        resolve({
-                            default: response.url
-                        });
-                    });
+                    _initRequest() {
+                        const xhr = this.xhr = new XMLHttpRequest();
+                        xhr.open('POST', '/ckeditor/upload', true);
+                        xhr.setRequestHeader('X-CSRF-TOKEN', document.querySelector('meta[name="csrf-token"]').getAttribute('content'));
+                        xhr.responseType = 'json';
+                    }
 
-                    if (xhr.upload) {
-                        xhr.upload.addEventListener('progress', evt => {
-                            if (evt.lengthComputable) {
-                                this.loader.uploadTotal = evt.total;
-                                this.loader.uploaded = evt.loaded;
+                    _initListeners(resolve, reject, file) {
+                        const xhr = this.xhr;
+                        const genericErrorText = `Не удалось загрузить файл: ${file.name}`;
+
+                        xhr.addEventListener('error', () => reject(genericErrorText));
+                        xhr.addEventListener('abort', () => reject());
+                        xhr.addEventListener('load', () => {
+                            const response = xhr.response;
+
+                            if (!response || response.error) {
+                                return reject(response && response.error ? response.error.message : genericErrorText);
                             }
+
+                            resolve({
+                                default: response.url
+                            });
                         });
+
+                        if (xhr.upload) {
+                            xhr.upload.addEventListener('progress', evt => {
+                                if (evt.lengthComputable) {
+                                    this.loader.uploadTotal = evt.total;
+                                    this.loader.uploaded = evt.loaded;
+                                }
+                            });
+                        }
+                    }
+
+                    _sendRequest(file) {
+                        const data = new FormData();
+                        data.append('upload', file);
+                        this.xhr.send(data);
                     }
                 }
 
-                _sendRequest(file) {
-                    const data = new FormData();
-                    data.append('upload', file);
-                    this.xhr.send(data);
+                function UploadAdapterPlugin(editor) {
+                    editor.plugins.get('FileRepository').createUploadAdapter = loader => new UploadAdapter(loader);
                 }
-            }
 
-            function UploadAdapterPlugin(editor) {
-                editor.plugins.get('FileRepository').createUploadAdapter = loader => new UploadAdapter(loader);
-            }
-
-            ClassicEditor
-                .create(document.querySelector('#editor'), {
+                const editorConfig = {
                     extraPlugins: [UploadAdapterPlugin],
                     toolbar: [
                         'heading', '|',
@@ -241,36 +252,87 @@
                     table: {
                         contentToolbar: ['tableColumn', 'tableRow', 'mergeTableCells']
                     }
-                })
-                .then(editor => {
-                    wysiwygEditor = editor;
-                })
-                .catch(error => {
-                    console.error(error);
+                };
+
+                function createVisualEditor() {
+                    $('#editor').removeClass('font-monospace');
+
+                    return ClassicEditor
+                        .create(document.querySelector('#editor'), editorConfig)
+                        .then(editor => {
+                            wysiwygEditor = editor;
+                            htmlMode = false;
+                            $('#toggleHtmlMode').text('HTML-код');
+                        })
+                        .catch(error => {
+                            console.error(error);
+                        });
+                }
+
+                function startEditor() {
+                    $('#text').hide();
+                    $('#editBox').show();
+                    $('#pencil').hide();
+
+                    if (!wysiwygEditor && !htmlMode) {
+                        createVisualEditor();
+                    }
+                }
+
+                function switchToHtmlMode() {
+                    if (!wysiwygEditor) {
+                        return;
+                    }
+
+                    const editorHtml = wysiwygEditor.getData();
+                    $('#editor').val(editorHtml);
+                    $('#newTextHtml').val(editorHtml);
+
+                    wysiwygEditor.destroy().then(() => {
+                        wysiwygEditor = null;
+                        htmlMode = true;
+                        $('#editor').show().addClass('font-monospace').css('min-height', '360px');
+                        $('#toggleHtmlMode').text('Визуальный режим');
+                    });
+                }
+
+                function switchToVisualMode() {
+                    const editorHtml = $('#editor').val();
+                    $('#newTextHtml').val(editorHtml);
+                    htmlMode = false;
+                    createVisualEditor();
+                }
+
+                $(document).ready(function() {
+                    $(document).on('click touchstart', '#pencil', function(e){
+                        e.preventDefault();
+                        startEditor();
+                    });
+
+                    $(document).on('click touchstart', '#toggleHtmlMode', function(e){
+                        e.preventDefault();
+
+                        if (wysiwygEditor) {
+                            switchToHtmlMode();
+                        } else if (htmlMode) {
+                            switchToVisualMode();
+                        }
+                    });
+
+                    $('#formText').on('submit', function(){
+                        const editorHtml = wysiwygEditor ? wysiwygEditor.getData() : $('#editor').val();
+                        $('#editor').val(editorHtml);
+                        $('#newTextHtml').val(editorHtml);
+                    });
+
+                    $(document).on('click touchstart', '#cancelEdit', function(e){
+                        e.preventDefault();
+                        $('#editBox').hide();
+                        $('#text').show();
+                        $('#pencil').show();
+                    });
                 });
-        }
-    }
-
-    $(document).ready(function() {
-        $(document).on('click touchstart', '#pencil', function(e){
-            e.preventDefault();
-            startEditor();
-        });
-
-        $('#formText').on('submit', function(){
-            if (wysiwygEditor) {
-                $('#editor').val(wysiwygEditor.getData());
-            }
-        });
-
-        $(document).on('click touchstart', '#cancelEdit', function(e){
-            e.preventDefault();
-            $('#editBox').hide();
-            $('#text').show();
-            $('#pencil').show();
-        });
-    });
-</script>
+            </script>
     </div>
     <div class="row">
         <div class="col-md-5">

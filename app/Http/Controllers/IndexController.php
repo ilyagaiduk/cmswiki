@@ -112,7 +112,8 @@ class IndexController extends Controller
         if ($request->isMethod('post'))
         {
             $newh1 = $request->newh1;
-            $newText = $request->newText;
+            $newText = $request->input('newTextHtml', $request->newText);
+            $newText = html_entity_decode($newText, ENT_QUOTES | ENT_HTML5, 'UTF-8');
             $url = $request->url;
             date_default_timezone_set('Europe/Moscow');
             $user = Auth::user();
